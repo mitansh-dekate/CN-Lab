@@ -1,0 +1,41 @@
+[N3 11:49:02.243] node started on port 9003 (algo=bully, cluster size=5)
+[N3 11:49:03.863] accepted N5 as LEADER (term 1)
+[N3 11:49:52.162] ELECTION started (bully): challenged by N1
+[N3 11:49:52.164] accepted N4 as LEADER (term 2)
+[N3 11:49:52.167] ELECTION started (bully): challenged by N2
+[N3 11:49:52.169] accepted N4 as LEADER (term 2)
+[N3 11:49:59.664] accepted N5 as LEADER (term 3)
+[N3 11:50:03.415] leader N5 stopped sending heartbeats -> presumed DEAD
+[N3 11:50:03.415] ELECTION started (bully): leader N5 failed
+[N3 11:50:03.419] accepted N4 as LEADER (term 4)
+[N3 11:50:20.923] ELECTION started (bully): challenged by N1
+[N3 11:50:20.923] became LEADER (term 5) - collecting peer logs before serving
+[N3 11:50:20.950] leader ready: log=0 commit=0 (history synced from peers)
+[N3 15:47:08.237] node started on port 9003 (algo=bully, cluster size=5)
+[N3 15:47:09.756] ELECTION started (bully): no leader known
+[N3 15:47:09.759] accepted N5 as LEADER (term 1)
+[N3 15:48:09.618] leader N5 stopped sending heartbeats -> presumed DEAD
+[N3 15:48:09.618] ELECTION started (bully): leader N5 failed
+[N3 15:48:09.621] accepted N4 as LEADER (term 2)
+[N3 15:48:36.381] accepted N5 as LEADER (term 3)
+[N3 15:48:40.808] accepted N4 as LEADER (term 4)
+[N3 15:48:48.574] ELECTION started (bully): challenged by N1
+[N3 15:48:48.575] became LEADER (term 5) - collecting peer logs before serving
+[N3 15:48:48.599] leader ready: log=1 commit=1 (history synced from peers)
+[N3 15:49:32.180] node started on port 9003 (algo=bully, cluster size=5)
+[N3 15:49:32.258] accepted N5 as LEADER (term 3)
+[N3 14:43:18.088] node started on port 9003 (algo=bully, cluster size=5)
+[N3 14:43:18.295] client 'web-ui' connected (resume from seq 0)
+[N3 14:43:19.698] ELECTION started (bully): challenged by N2
+[N3 14:43:19.701] accepted N5 as LEADER (term 1)
+[N3 14:44:04.954] leader N5 stopped sending heartbeats -> presumed DEAD
+[N3 14:44:04.955] ELECTION started (bully): leader N5 failed
+[N3 14:44:04.957] accepted N4 as LEADER (term 2)
+[N3 14:44:23.064] accepted N5 as LEADER (term 3)
+[N3 14:44:31.273] leader N5 stopped sending heartbeats -> presumed DEAD
+[N3 14:44:31.274] ELECTION started (bully): leader N5 failed
+[N3 14:44:31.278] accepted N4 as LEADER (term 4)
+[N3 14:44:33.762] ELECTION started (bully): challenged by N2
+[N3 14:44:34.783] became LEADER (term 5) - collecting peer logs before serving
+[N3 14:44:34.808] leader ready: log=0 commit=0 (history synced from peers)
+[N3 14:46:48.057] accepted N5 as LEADER (term 6)

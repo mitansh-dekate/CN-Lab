@@ -1,0 +1,34 @@
+[N4 11:49:02.237] node started on port 9004 (algo=bully, cluster size=5)
+[N4 11:49:03.861] ELECTION started (bully): no leader known
+[N4 11:49:03.863] accepted N5 as LEADER (term 1)
+[N4 11:49:52.162] ELECTION started (bully): challenged by N1
+[N4 11:49:52.163] became LEADER (term 2) - collecting peer logs before serving
+[N4 11:49:52.184] leader ready: log=0 commit=0 (history synced from peers)
+[N4 11:49:59.665] accepted N5 as LEADER (term 3)
+[N4 11:50:03.417] ELECTION started (bully): challenged by N3
+[N4 11:50:03.417] became LEADER (term 4) - collecting peer logs before serving
+[N4 11:50:03.443] leader ready: log=0 commit=0 (history synced from peers)
+[N4 15:47:08.237] node started on port 9004 (algo=bully, cluster size=5)
+[N4 15:47:08.329] client 'web-ui' connected (resume from seq 0)
+[N4 15:47:09.755] ELECTION started (bully): no leader known
+[N4 15:47:09.758] accepted N5 as LEADER (term 1)
+[N4 15:48:09.619] ELECTION started (bully): challenged by N3
+[N4 15:48:09.620] became LEADER (term 2) - collecting peer logs before serving
+[N4 15:48:09.646] leader ready: log=1 commit=1 (history synced from peers)
+[N4 15:48:36.381] accepted N5 as LEADER (term 3)
+[N4 15:48:40.806] leader N5 stopped sending heartbeats -> presumed DEAD
+[N4 15:48:40.806] ELECTION started (bully): leader N5 failed
+[N4 15:48:40.806] became LEADER (term 4) - collecting peer logs before serving
+[N4 15:48:40.833] leader ready: log=1 commit=1 (history synced from peers)
+[N4 15:49:24.443] node started on port 9004 (algo=bully, cluster size=5)
+[N4 15:49:24.696] accepted N5 as LEADER (term 3)
+[N4 14:43:18.088] node started on port 9004 (algo=bully, cluster size=5)
+[N4 14:43:19.698] ELECTION started (bully): challenged by N2
+[N4 14:43:19.702] accepted N5 as LEADER (term 1)
+[N4 14:44:04.955] ELECTION started (bully): challenged by N3
+[N4 14:44:04.956] became LEADER (term 2) - collecting peer logs before serving
+[N4 14:44:04.982] leader ready: log=0 commit=0 (history synced from peers)
+[N4 14:44:23.065] accepted N5 as LEADER (term 3)
+[N4 14:44:31.275] ELECTION started (bully): challenged by N3
+[N4 14:44:31.276] became LEADER (term 4) - collecting peer logs before serving
+[N4 14:44:31.301] leader ready: log=0 commit=0 (history synced from peers)

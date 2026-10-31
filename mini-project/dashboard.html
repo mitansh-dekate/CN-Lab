@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cluster console - distributed chat</title>
+<style>
+:root{
+  --bg:#e5eaf0; --panel:#fbfcfd; --ink:#13202c; --muted:#566676; --line:#c9d3de; --soft:#eef2f6;
+  --leader:#d89a00; --leader-ink:#3d2900; --follower:#1c7a8d; --election:#7648c9; --down:#a8384a; --fault:#d25d1c; --ok:#1f8a54;
+  --sans:"Segoe UI","SF Pro Text","Helvetica Neue",system-ui,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--sans)}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid #2b6fd6;outline-offset:2px}
+
+header{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding:14px 20px;background:var(--ink);color:#eef3f8}
+header h1{margin:0;font-size:20px;font-weight:650;letter-spacing:.2px}
+header .sub{color:#9fb0c1;font-size:14px}
+.chips{margin-left:auto;display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:4px 12px;border-radius:999px;font-size:13.5px;font-weight:600;background:#243545;color:#dce6f0;border:1px solid #34495c}
+.chip.good{background:#173d2b;border-color:#2c6b4a;color:#bdf0d3}
+.chip.bad{background:#4a1d27;border-color:#8a3445;color:#ffd0d8}
+.chip.warn{background:#46300f;border-color:#8b6420;color:#ffe2a6}
+.chip.lead{background:var(--leader);border-color:var(--leader);color:var(--leader-ink)}
+
+.app{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px;padding:16px 20px 28px;align-items:start}
+.col{display:grid;gap:16px;min-width:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.panel h2{margin:0 0 10px;font-size:15.5px;font-weight:650}
+.panel h2 small{font-weight:400;color:var(--muted);margin-left:8px}
+
+/* ring */
+#ring{width:100%;height:auto;display:block}
+#ring text{font-family:var(--sans)}
+.node{cursor:pointer}
+.node:focus-visible{outline:none}
+.node:focus-visible .sel{stroke:#2b6fd6;stroke-width:4}
+.halo{transform-box:fill-box;transform-origin:center;animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{0%{opacity:.85;transform:scale(1)}100%{opacity:0;transform:scale(1.55)}}
+@media (prefers-reduced-motion:reduce){.halo{animation:none;opacity:.5}}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:6px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+
+/* controls */
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ctl .who{font-weight:650;margin-right:6px;min-width:150px}
+button{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:600}
+button:hover:not(:disabled){background:var(--soft)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.danger{border-color:#d9a3ad;color:var(--down)}
+button.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+button.primary:hover:not(:disabled){background:#22364a}
+label.f{display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--muted)}
+select,input[type=text]{border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:#fff}
+.hint{font-size:13px;color:var(--muted);margin:8px 0 0}
+
+/* table */
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{font-weight:600;color:var(--muted);text-align:left;font-size:13px;padding:4px 7px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:6px 7px;border-bottom:1px solid #e3e9ef;white-space:nowrap}
+tr.sel td{background:#eaf1fb}
+td.mono{font-family:var(--mono);font-size:13px}
+.badge{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12.5px;font-weight:650;color:#fff}
+.b-LEADER{background:var(--leader);color:var(--leader-ink)} .b-FOLLOWER{background:var(--follower)}
+.b-ELECTION{background:var(--election)} .b-DOWN{background:var(--down)}
+.net-bad{color:var(--fault);font-weight:600}
+
+/* events + chat */
+#events{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto;font-size:13.5px}
+#events li{display:grid;grid-template-columns:92px 34px 1fr;gap:8px;padding:3px 0 3px 8px;border-left:4px solid var(--line);border-bottom:1px solid #edf1f5}
+#events .t{font-family:var(--mono);font-size:12px;color:var(--muted);padding-top:1px}
+#events .n{font-weight:650}
+.k-election{border-left-color:var(--election)!important} .k-leader{border-left-color:var(--leader)!important}
+.k-failure{border-left-color:var(--down)!important} .k-fault{border-left-color:var(--fault)!important}
+.k-sync{border-left-color:var(--follower)!important}
+#msgs{list-style:none;margin:0 0 10px;padding:0;height:250px;overflow:auto;background:var(--soft);border-radius:6px;border:1px solid var(--line)}
+#msgs li{display:flex;gap:8px;padding:4px 10px;border-bottom:1px solid #e2e8ee;font-size:14px}
+#msgs .seq{font-family:var(--mono);font-size:12px;color:var(--muted);min-width:34px;padding-top:2px}
+#msgs .u{font-weight:650}
+#msgs .lc{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap;padding-top:2px}
+.sendrow{display:flex;gap:8px}
+.sendrow input[type=text]{flex:1;min-width:0}
+.sendrow .name{width:110px;flex:none}
+.chatinfo{font-size:13px;color:var(--muted);margin-top:8px}
+.counts{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:14px}
+.counts b{font-family:var(--mono)}
+
+@media (max-width:1000px){.app{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Distributed chat cluster</h1>
+  <span class="sub" id="sub">connecting...</span>
+  <div class="chips" id="chips"></div>
+</header>
+
+<main class="app">
+  <div class="col">
+    <section class="panel">
+      <h2>Cluster <small>click a node to select it</small></h2>
+      <svg id="ring" viewBox="0 0 620 420" role="img" aria-label="Cluster topology"></svg>
+      <div class="legend">
+        <span><i style="background:var(--leader)"></i>Leader</span>
+        <span><i style="background:var(--follower)"></i>Follower</span>
+        <span><i style="background:var(--election)"></i>Election running</span>
+        <span><i style="background:var(--down)"></i>Down</span>
+        <span><i style="border:2px dashed var(--fault)"></i>Cut off from network</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Failure injection</h2>
+      <div class="ctl">
+        <span class="who" id="who">No node selected</span>
+        <button class="danger" id="b-kill">Crash node</button>
+        <button id="b-start">Restart node</button>
+        <button id="b-iso">Cut network</button>
+        <button id="b-heal">Restore network</button>
+      </div>
+      <div class="ctl" style="margin-top:10px">
+        <label class="f">Latency
+          <select id="s-delay"><option value="0">none</option><option value="200">200 ms</option><option value="500">500 ms</option><option value="1000">1000 ms</option></select></label>
+        <label class="f">Packet loss
+          <select id="s-drop"><option value="0">none</option><option value="0.1">10%</option><option value="0.3">30%</option><option value="0.5">50%</option></select></label>
+        <button id="b-fault">Apply to node</button>
+        <button class="danger" id="b-leader" style="margin-left:auto">Crash current leader</button>
+      </div>
+      <p class="hint" id="hint"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Nodes</h2>
+      <div class="tw"><table id="tbl"></table></div>
+      <p class="hint" id="consistency"></p>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="panel">
+      <h2>Chat <small>sent through the cluster, delivered in one agreed order</small></h2>
+      <ul id="msgs"></ul>
+      <div class="sendrow">
+        <input type="text" class="name" id="user" value="web-ui" aria-label="Your name">
+        <input type="text" id="text" placeholder="Write a message" aria-label="Message" autocomplete="off">
+        <button class="primary" id="b-send">Send</button>
+        <button id="b-burst" title="Sends 10 messages, one every 250 ms">Send 10</button>
+      </div>
+      <div class="chatinfo" id="chatinfo"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Events <small>all nodes, newest first</small></h2>
+      <ul id="events"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>Election cost <small>messages sent by all nodes since start</small></h2>
+      <div class="counts" id="counts"></div>
+      <div class="tw" style="margin-top:10px"><table id="elec"></table></div>
+    </section>
+  </div>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = t => { const d = new Date(t * 1000); return d.toTimeString().slice(0, 8) + '.' + String(d.getMilliseconds()).padStart(3, '0'); };
+let data = null, selected = null;
+
+async function post(path, body) {
+  try { const r = await fetch(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)}); return await r.json(); }
+  catch (e) { return {ok: false}; }
+}
+const ctl = (cmd, extra = {}, node = selected) => node ? post('/api/ctl', Object.assign({node, cmd}, extra)) : null;
+
+function derive(id, n) {
+  const st = n.status;
+  if (!st) return {kind: 'DOWN', st: null, isolated: false};
+  return {kind: st.state, st, isolated: (st.faults.isolated || []).length > 0};
+}
+
+function currentLeader(ids) {
+  let best = null;
+  for (const id of ids) {
+    const d = derive(id, data.nodes[id]);
+    if (d.kind === 'LEADER' && (!best || d.st.term >= best.term)) best = {id, term: d.st.term, ready: d.st.ready};
+  }
+  return best;
+}
+
+function renderRing(ids, leader) {
+  const cx = 310, cy = 205, rx = 235, ry = 135, n = ids.length;
+  const pos = {};
+  ids.forEach((id, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / n; pos[id] = [cx + rx * Math.cos(a), cy + ry * Math.sin(a)]; });
+  let s = '';
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    const a = ids[i], b = ids[j];
+    const ua = data.nodes[a].status, ub = data.nodes[b].status;
+    if (!ua || !ub) continue;
+    s += `<line x1="${pos[a][0]}" y1="${pos[a][1]}" x2="${pos[b][0]}" y2="${pos[b][1]}" stroke="#c3cdd8" stroke-width="1"/>`;
+  }
+  if (leader) for (const id of ids) {
+    if (id === leader.id) continue;
+    const d = derive(id, data.nodes[id]);
+    if (!d.st) continue;
+    const cut = d.isolated || (derive(leader.id, data.nodes[leader.id]).isolated);
+    const following = d.st.leader === leader.id;
+    s += `<line x1="${pos[leader.id][0]}" y1="${pos[leader.id][1]}" x2="${pos[id][0]}" y2="${pos[id][1]}" stroke="${cut ? '#d25d1c' : '#d89a00'}" stroke-width="${following ? 3 : 1.5}" ${(cut || !following) ? 'stroke-dasharray="6 6"' : ''} opacity=".85"/>`;
+  }
+  for (const id of ids) {
+    const [x, y] = pos[id], d = derive(id, data.nodes[id]);
+    const fill = {LEADER: '#d89a00', FOLLOWER: '#1c7a8d', ELECTION: '#7648c9', DOWN: '#c9d0d8'}[d.kind];
+    const sub = d.kind === 'DOWN' ? 'down' : d.kind === 'LEADER' ? (d.st.ready ? 'leader' : 'leader (syncing)') : d.kind === 'ELECTION' ? 'electing' : 'follower';
+    s += `<g class="node" tabindex="0" role="button" data-id="${id}" aria-label="Node ${id}, ${sub}">`;
+    if (d.kind === 'ELECTION') s += `<circle class="halo" cx="${x}" cy="${y}" r="36" fill="none" stroke="#7648c9" stroke-width="4"/>`;
+    if (id === selected) s += `<circle class="sel" cx="${x}" cy="${y}" r="45" fill="none" stroke="#13202c" stroke-width="2.5"/>`;
+    if (d.isolated) s += `<circle cx="${x}" cy="${y}" r="41" fill="none" stroke="#d25d1c" stroke-width="3" stroke-dasharray="5 4"/>`;
+    s += `<circle cx="${x}" cy="${y}" r="34" fill="${fill}"/>`;
+    s += `<text x="${x}" y="${y + 8}" text-anchor="middle" font-size="24" font-weight="700" fill="${d.kind === 'DOWN' ? '#7b8794' : d.kind === 'LEADER' ? '#3d2900' : '#fff'}">${id}</text>`;
+    if (d.kind === 'LEADER') s += `<path d="M${x-15} ${y-39} L${x-15} ${y-55} L${x-7} ${y-47} L${x} ${y-59} L${x+7} ${y-47} L${x+15} ${y-55} L${x+15} ${y-39} Z" fill="#d89a00" stroke="#3d2900" stroke-width="1.5" stroke-linejoin="round"/>`;
+    if (d.kind === 'DOWN') s += `<path d="M${x-10} ${y-10} L${x+10} ${y+10} M${x+10} ${y-10} L${x-10} ${y+10}" stroke="#a8384a" stroke-width="4" stroke-linecap="round" opacity=".0"/>`;
+    const txtY = y + 64;
+    s += `<text x="${x}" y="${txtY}" text-anchor="middle" font-size="13.5" font-weight="600" fill="#13202c">${esc(sub)}</text>`;
+    if (d.st) s += `<text x="${x}" y="${txtY + 16}" text-anchor="middle" font-size="12.5" fill="#566676">log ${d.st.log_len} / committed ${d.st.commit}</text>`;
+    s += `</g>`;
+  }
+  $('#ring').innerHTML = s;
+  $('#ring').querySelectorAll('.node').forEach(g => {
+    const pick = () => { selected = +g.dataset.id; render(); };
+    g.addEventListener('click', pick);
+    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+  });
+}
+
+function renderTable(ids) {
+  let h = '<tr><th>Node</th><th>State</th><th>Follows</th><th>Term</th><th>Log</th><th>Committed</th><th>Log fingerprint</th><th>Clients</th><th>Network</th></tr>';
+  for (const id of ids) {
+    const d = derive(id, data.nodes[id]), st = d.st;
+    if (!st) { h += `<tr class="${id === selected ? 'sel' : ''}"><td><b>N${id}</b></td><td><span class="badge b-DOWN">DOWN</span></td><td colspan="7" style="color:var(--muted)">not responding</td></tr>`; continue; }
+    const f = st.faults, net = d.isolated ? '<span class="net-bad">cut off</span>' : (f.delay_ms || f.drop) ? `<span class="net-bad">${f.delay_ms ? f.delay_ms + ' ms ' : ''}${f.drop ? Math.round(f.drop * 100) + '% loss' : ''}</span>` : 'ok';
+    h += `<tr class="${id === selected ? 'sel' : ''}"><td><b>N${id}</b></td><td><span class="badge b-${st.state}">${st.state}</span></td>` +
+      `<td>${st.leader ? 'N' + st.leader : '-'}</td><td>${st.term}</td><td>${st.log_len}</td><td>${st.commit}</td>` +
+      `<td class="mono">${st.digest}</td><td>${esc(st.clients.join(', ') || '-')}</td><td>${net}</td></tr>`;
+  }
+  $('#tbl').innerHTML = h;
+  const ups = ids.map(i => data.nodes[i].status).filter(Boolean);
+  const same = ups.length > 0 && new Set(ups.map(s => s.digest + ':' + s.commit)).size === 1;
+  $('#consistency').textContent = ups.length === 0 ? '' : same
+    ? `All ${ups.length} running replicas hold the same ${ups[0].commit} committed messages (fingerprints match).`
+    : 'Replicas differ right now: lagging nodes are catching up from the leader.';
+}
+
+function renderEvents(ids) {
+  const seen = new Set(), all = [];
+  for (const id of ids) { const st = data.nodes[id].status; if (!st) continue;
+    for (const e of st.events) { const k = e.t + '|' + e.node + '|' + e.text; if (!seen.has(k)) { seen.add(k); all.push(e); } } }
+  all.sort((a, b) => b.t - a.t);
+  $('#events').innerHTML = all.slice(0, 70).map(e => `<li class="k-${e.kind}"><span class="t">${fmt(e.t)}</span><span class="n">N${e.node}</span><span>${esc(e.text)}</span></li>`).join('');
+}
+
+function renderChat() {
+  const c = data.chat, box = $('#msgs');
+  const near = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+  box.innerHTML = c.messages.map(m => `<li><span class="seq">#${m.seq}</span><span><span class="u">${esc(m.user)}</span> ${esc(m.text)}</span><span class="lc">L${m.lc} via N${m.via}</span></li>`).join('');
+  if (near) box.scrollTop = box.scrollHeight;
+  const last = c.events.length ? c.events[c.events.length - 1].text : '';
+  $('#chatinfo').textContent = (c.connected_to ? `Dashboard client is attached to node ${c.connected_to}` : 'Dashboard client is reconnecting...') +
+    ` | last delivered #${c.last_seq} | waiting for delivery: ${c.unacked}` + (last ? ` | ${last}` : '');
+}
+
+function renderCounts(ids) {
+  const tot = {};
+  const rows = [];
+  for (const id of ids) { const st = data.nodes[id].status; if (!st) continue;
+    for (const [k, v] of Object.entries(st.counts)) tot[k] = (tot[k] || 0) + v;
+    for (const e of st.elections) if (e.winner === id) rows.push({t: e.t, id, algo: e.algo, dur: e.duration, term: e.term}); }
+  const names = [['ELECTION', 'ELECTION'], ['ELECTION_OK', 'OK'], ['RING_ELECTION', 'RING token'], ['COORDINATOR', 'COORDINATOR'], ['total', 'all messages']];
+  $('#counts').innerHTML = names.map(([k, n]) => `<span>${n}: <b>${tot[k] || 0}</b></span>`).join('');
+  rows.sort((a, b) => b.t - a.t);
+  $('#elec').innerHTML = '<tr><th>When</th><th>Winner</th><th>Algorithm</th><th>Term</th><th>Election took</th></tr>' +
+    (rows.slice(0, 5).map(r => `<tr><td class="mono">${fmt(r.t)}</td><td>N${r.id}</td><td>${r.algo}</td><td>${r.term}</td><td>${r.dur.toFixed(2)} s</td></tr>`).join('') ||
+     '<tr><td colspan="5" style="color:var(--muted)">No election recorded yet.</td></tr>');
+}
+
+function renderControls(ids, leader) {
+  const d = selected ? derive(selected, data.nodes[selected]) : null;
+  $('#who').textContent = selected ? `Node ${selected}` : 'Select a node';
+  const managed = data.managed;
+  $('#b-kill').disabled = !selected || (managed ? !data.nodes[selected].running : !d.st);
+  $('#b-start').disabled = !selected || !managed || data.nodes[selected].running;
+  $('#b-iso').disabled = !selected || !d.st || d.isolated;
+  $('#b-heal').disabled = !selected || !d.st || !(d.isolated || d.st.faults.delay_ms || d.st.faults.drop);
+  $('#b-fault').disabled = !selected || !d.st;
+  $('#b-leader').disabled = !leader;
+  $('#hint').textContent = managed ? '' : 'Nodes were started separately: Crash makes the node process exit, and it has to be restarted by hand.';
+}
+
+function renderHeader(ids, leader) {
+  const ups = ids.filter(i => data.nodes[i].status).length, need = Math.floor(ids.length / 2) + 1;
+  const electing = ids.some(i => derive(i, data.nodes[i]).kind === 'ELECTION');
+  $('#sub').textContent = `${ids.length} nodes | ${data.algo} election | refreshed ${fmt(data.now)}`;
+  let h = '';
+  h += leader ? `<span class="chip lead">Leader: node ${leader.id} (term ${leader.term})${leader.ready ? '' : ', syncing'}</span>`
+              : `<span class="chip ${electing ? 'warn' : 'bad'}">${electing ? 'Election in progress' : 'No leader'}</span>`;
+  h += `<span class="chip ${ups >= need ? 'good' : 'bad'}">${ups} of ${ids.length} nodes up, need ${need} to commit</span>`;
+  $('#chips').innerHTML = h;
+}
+
+function render() {
+  if (!data) return;
+  const ids = Object.keys(data.nodes).map(Number).sort((a, b) => a - b);
+  const leader = currentLeader(ids);
+  renderHeader(ids, leader); renderRing(ids, leader); renderTable(ids); renderEvents(ids);
+  renderChat(); renderCounts(ids); renderControls(ids, leader);
+}
+
+async function poll() {
+  try { data = await (await fetch('/api/cluster')).json(); render(); }
+  catch (e) { $('#sub').textContent = 'dashboard server unreachable'; }
+  setTimeout(poll, 500);
+}
+
+$('#b-kill').onclick = () => ctl('kill');
+$('#b-start').onclick = () => ctl('start');
+$('#b-iso').onclick = () => ctl('isolate');
+$('#b-heal').onclick = () => ctl('heal');
+$('#b-fault').onclick = () => ctl('fault', {delay_ms: +$('#s-delay').value, drop: +$('#s-drop').value});
+$('#b-leader').onclick = () => { const ids = Object.keys(data.nodes).map(Number); const l = currentLeader(ids); if (l) { selected = l.id; ctl('kill', {}, l.id); } };
+
+async function sendOne(text) { await post('/api/send', {user: $('#user').value.trim() || 'web-ui', text}); }
+async function sendTyped() { const t = $('#text').value.trim(); if (!t) return; $('#text').value = ''; await sendOne(t); }
+$('#b-send').onclick = sendTyped;
+$('#text').addEventListener('keydown', e => { if (e.key === 'Enter') sendTyped(); });
+$('#b-burst').onclick = async () => { const tag = Date.now() % 10000; for (let i = 1; i <= 10; i++) { await sendOne(`burst ${tag}-${i}`); await new Promise(r => setTimeout(r, 250)); } };
+
+poll();
+</script>
+</body>
+</html>
